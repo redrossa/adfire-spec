@@ -1,0 +1,767 @@
+openapi: "3.1.0"
+info:
+  title: Adfire API
+  version: "0.1"
+  description: >
+    A collection of APIs and schema definitions shared between Adfire backend and frontend.
+
+servers:
+  - url: /v0
+    description: Base path independent of service hostname
+
+tags:
+  - name: accounts
+    description: Everything about accounts.
+  - name: transactions
+    description: Everything about transactions.
+
+paths:
+  /accounts:
+    get:
+      tags:
+        - accounts
+      summary: Returns all accounts.
+      description: Returns all accounts belonging to the session user sorted by name in ascending order.
+      parameters:
+        - $ref: '#/components/parameters/X-Session-Token'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Account'
+              examples:
+                default:
+                  $ref: '#/components/examples/accountsList'
+    post:
+      tags:
+        - accounts
+      summary: Creates a new account.
+      description: Creates a new account belonging to the session user.
+      parameters:
+        - $ref: '#/components/parameters/X-Session-Token'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountInput'
+            examples:
+              asset:
+                $ref: '#/components/examples/accountInputAsset'
+      responses:
+        201:
+          description: Created
+          headers:
+            Location:
+              description: The URL of the newly created account.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+              examples:
+                asset:
+                  $ref: '#/components/examples/accountAsset'
+  /accounts/{id}:
+    get:
+      tags:
+        - accounts
+      summary: Returns an account with the given ID.
+      description: Returns an account with the given ID belonging to the session user.
+      parameters:
+        - $ref: '#/components/parameters/X-Session-Token'
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+              examples:
+                asset:
+                  $ref: '#/components/examples/accountAsset'
+                liability:
+                  $ref: '#/components/examples/accountLiability'
+                expense 1:
+                  $ref: '#/components/examples/accountExpense1'
+                expense 2:
+                  $ref: '#/components/examples/accountExpense2'
+                income:
+                  $ref: '#/components/examples/accountIncome'
+    put:
+      tags:
+        - accounts
+      summary: Replaces the account with the given ID
+      description: >
+        Replaces the account with the given ID belonging to the session user with a new content, or creates a new one if
+        an account with the given ID does not exist.
+      parameters:
+        - $ref: '#/components/parameters/X-Session-Token'
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountInput'
+            examples:
+              default:
+                $ref: '#/components/examples/accountInputAsset'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+              examples:
+                asset:
+                  $ref: '#/components/examples/accountAsset'
+        201:
+          description: Created
+          headers:
+            Location:
+              description: The URL of the newly created account.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+              examples:
+                asset:
+                  $ref: '#/components/examples/accountAsset'
+    delete:
+      tags:
+        - accounts
+      summary: Deletes an account with the given ID.
+      description: Deletes an account with the given ID belonging to the session user.
+      parameters:
+        - $ref: '#/components/parameters/X-Session-Token'
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        204:
+          description: No Content
+  /accounts/{id}/balances:
+    get:
+      tags:
+        - accounts
+      summary: Returns all daily balances of an account.
+      description: Returns a sorted series of all daily balances of an account with the given ID belonging to the session user.
+      parameters:
+        - $ref: '#/components/parameters/X-Session-Token'
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/Order'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DateSeriesDataPoint'
+              example: |
+                [
+                  {
+                    "date": "2025-03-01",
+                    "value": 4000
+                  },
+                  {
+                    "date": "2025-03-02",
+                    "value": 5000
+                  },
+                  {
+                    "date": "2025-03-04",
+                    "value": 2000
+                  },
+                  {
+                    "date": "2025-03-07",
+                    "value": 3000
+                  }
+                ]
+  /accounts/{id}/transactions:
+    get:
+      tags:
+        - accounts
+      summary: Returns all transactions of an account.
+      description: Returns a sorted series of all transactions of an account with the given ID belonging to the session user.
+      parameters:
+        - $ref: '#/components/parameters/X-Session-Token'
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/Order'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transaction'
+              examples:
+                default:
+                  $ref: '#/components/examples/accountTransactionsList'
+  /transactions:
+    get:
+      tags:
+        - transactions
+      summary: Returns all transactions.
+      description: Returns a sorted series of all transactions of the session user.
+      parameters:
+        - $ref: '#/components/parameters/X-Session-Token'
+        - $ref: '#/components/parameters/Order'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transaction'
+              examples:
+                default:
+                  $ref: '#/components/examples/transactionsList'
+    post:
+      tags:
+        - transactions
+      summary: Creates a new transaction.
+      description: Creates a new transaction belonging to the session user.
+      parameters:
+        - $ref: '#/components/parameters/X-Session-Token'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionInput'
+            examples:
+              expense:
+                $ref: '#/components/examples/transactionInputExpense'
+      responses:
+        201:
+          description: Created
+          headers:
+            Location:
+              description: The URL of the newly created transaction.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+              examples:
+                expense:
+                  $ref: '#/components/examples/transactionExpense1'
+  /transactions/{id}:
+    get:
+      tags:
+        - transactions
+      summary: Returns a transaction with the given ID.
+      description: Returns a transaction with the given ID belonging to the user.
+      parameters:
+        - $ref: '#/components/parameters/X-Session-Token'
+        - $ref: '#/components/parameters/TransactionId'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+              examples:
+                expense:
+                  $ref: '#/components/examples/transactionExpense1'
+                income:
+                  $ref: '#/components/examples/transactionIncome'
+                transfer:
+                  $ref: '#/components/examples/transactionTransfer'
+    put:
+      tags:
+        - transactions
+      summary: Replaces the transaction with the given ID.
+      description: >
+        Replaces the transaction with the given ID belonging to the user, or creates a new one if the transaction with
+        the given ID does not exist.
+      parameters:
+        - $ref: '#/components/parameters/X-Session-Token'
+        - $ref: '#/components/parameters/TransactionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionInput'
+            examples:
+              expense:
+                $ref: '#/components/examples/transactionInputExpense'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+              examples:
+                expense:
+                  $ref: '#/components/examples/transactionExpense1'
+        201:
+          description: Created
+          headers:
+            Location:
+              description: The URL of the newly created transaction.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+              examples:
+                expense:
+                  $ref: '#/components/examples/transactionExpense1'
+    delete:
+      tags:
+        - transactions
+      summary: Deletes the transaction with the given ID.
+      description: Deletes the transaction with the given ID belonging to the user.
+      parameters:
+        - $ref: '#/components/parameters/X-Session-Token'
+        - $ref: '#/components/parameters/TransactionId'
+      responses:
+        204:
+          description: No Content
+  /transactions/{id}/entries:
+    get:
+      tags:
+        - transactions
+      summary: Returns all entries of a transaction with the given ID.
+      description: >
+        Returns a sorted series of all entries of a transaction with the given ID belonging to the user. In a transaction,
+        The sum of all credit amounts must equal the sum of all debit amounts, but it is not required to have an equal 
+        number of credit and debit entries.
+      parameters:
+        - $ref: '#/components/parameters/X-Session-Token'
+        - $ref: '#/components/parameters/TransactionId'
+        - $ref: '#/components/parameters/Order'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Entry'
+              examples:
+                default:
+                  $ref: '#/components/examples/entriesList'
+
+components:
+  parameters:
+    X-Session-Token:
+      name: X-Session-Token
+      description: Session token for this logged-in user.
+      in: header
+      schema:
+        type: string
+        format: uuid
+      required: true
+    AccountId:
+      description: Identifier for this account.
+      name: id
+      in: path
+      schema:
+        $ref: '#/components/schemas/AccountId'
+      required: true
+    TransactionId:
+      description: Identifier for this transaction.
+      name: id
+      in: path
+      schema:
+        $ref: '#/components/schemas/EntityId'
+      required: true
+    Order:
+      description: Order to sort entities by date.
+      name: order
+      in: query
+      schema:
+        type: string
+        enum:
+          - asc
+          - desc
+        default: asc
+      required: false
+  schemas:
+    EntityName:
+      description: A textual representation of this entity.
+      type: string
+      minLength: 1
+      maxLength: 256
+      pattern: '^[\w\s-]+$'
+    EntityId:
+      description: A contextually unique identifier for this entity.
+      type: string
+      pattern: '^[A-Za-z0-9_-]+$'
+      minLength: 8
+      maxLength: 8
+    AccountId:
+      description: A contextually unique identifier for this account.
+      type: string
+      pattern: '^[A-Za-z0-9_-]+$'
+    AccountType:
+      description: Account type choices.
+      type: string
+      enum:
+        - asset
+        - liability
+        - income
+        - expense
+    AccountInput:
+      description: A simplified representation of an account before creation.
+      type: object
+      properties:
+        name:
+          $ref: '#/components/schemas/EntityName'
+        type:
+          $ref: '#/components/schemas/AccountType'
+        domain:
+          description: The institutional domain name associated with this account.
+          type: string
+          pattern: '^[a-zA-Z0-9][a-zA-Z0-9-_]{0,61}[a-zA-Z0-9]{0,1}\.([a-zA-Z]{1,6}|[a-zA-Z0-9-]{1,30}\.[a-zA-Z]{2,3})$'
+      required:
+        - name
+        - type
+    Account:
+      description: An entity that acts upon a collection of transactions.
+      allOf:
+        - $ref: '#/components/schemas/AccountInput'
+        - type: object
+          properties:
+            id:
+              $ref: '#/components/schemas/AccountId'
+            balance:
+              description: The balance within this account at relative date.
+              type: number
+          required:
+            - id
+            - balance
+    TransactionType:
+      description: Transaction type choices.
+      type: string
+      enum:
+        - income
+        - expense
+        - transfer
+    TransactionInput:
+      description: A simplified representation of a transaction before creation.
+      type: object
+      properties:
+        name:
+          $ref: '#/components/schemas/EntityName'
+        type:
+          $ref: '#/components/schemas/TransactionType'
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/EntryInput'
+      required:
+        - name
+        - type
+        - entries
+    Transaction:
+      description: An event involving an exchange of monetary values between accounts.
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/EntityId'
+        name:
+          $ref: '#/components/schemas/EntityName'
+        type:
+          $ref: '#/components/schemas/TransactionType'
+        date:
+          description: The date associated with this transaction.
+          type: string
+          format: date
+        counterparties:
+          description: >
+            A list of accounts representing the party opposite of `cisparties`. Generally for income transactions, this
+            would represent credited income accounts; for expenses, vendors; and for transfers, sender accounts.
+          type: array
+          items:
+            $ref: '#/components/schemas/Account'
+        cisparties:
+          description: >
+            A list of accounts representing the party opposite of `counterparties`. Generally for income transactions,
+            this would represent debited asset accounts; for expenses, credited asset or liability accounts; and for
+            transfers, recipient accounts.
+          type: array
+          items:
+            $ref: '#/components/schemas/Account'
+        amount:
+          description: The amount associated with this transaction.
+          type: number
+        isCredit:
+          description: Indicates whether the `amount` is a credit, if true, or a debit, if false.
+          type: boolean
+        value:
+          description: The absolute total amount transacted in this transaction.
+          type: number
+      required:
+        - id
+        - name
+        - date
+        - counterparties
+        - cisparties
+        - amount
+        - isCredit
+        - value
+    EntryInput:
+      description: A simplified representation of an entry before creation.
+      type: object
+      properties:
+        date:
+          description: The date this entry took place.
+          type: string
+          format: date
+        amount:
+          description: The amount this entry changes the `account` balance.
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+        isCredit:
+          description: Indicates whether the `amount` is a credit, if true, or a debit, if false.
+          type: boolean
+        accountId:
+          $ref: '#/components/schemas/AccountId'
+      required:
+        - date
+        - amount
+        - isCredit
+        - accountId
+    Entry:
+      description: A component of a transaction that records a balance change to an account at a specific date.
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/EntityId'
+        date:
+          description: The date this entry took place.
+          type: string
+          format: date
+        amount:
+          description: The amount this entry changes the `account` balance.
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+        isCredit:
+          description: Indicates whether the `amount` is a credit, if true, or a debit, if false.
+          type: boolean
+        account:
+          $ref: '#/components/schemas/Account'
+      required:
+        - id
+        - date
+        - amount
+        - isCredit
+        - account
+    DateSeriesDataPoint:
+      description: A single observation within a series of data collected over date.
+      type: object
+      properties:
+        date:
+          description: The date associated with this data point.
+          type: string
+          format: date
+        value:
+          description: The value associated with this data point.
+          type: number
+      required:
+        - date
+        - value
+  examples:
+    accountInputAsset:
+      value:
+        name: Chase Total Checking
+        type: asset
+        domain: chase.com
+    accountAsset:
+      value: &ex_account_asset
+        id: chase-total-checking
+        name: Chase Total Checking
+        type: asset
+        domain: chase.com
+        balance: 100
+    accountLiability:
+      value: &ex_account_liability
+        id: amex-gold
+        name: Amex Gold
+        type: liability
+        domain: americanexpress.com
+        balance: 1100
+    accountExpense1:
+      value: &ex_account_expense1
+        id: heb
+        name: HEB
+        type: expense
+        domain: heb.com
+        balance: 1100
+    accountExpense2:
+      value: &ex_account_expense2
+        id: olive-garden
+        name: Olive Garden
+        type: expense
+        domain: olivegarden.com
+        balance: 50
+    accountIncome:
+      value: &ex_account_income
+        id: amazon-salary
+        name: Amazon Salary
+        type: income
+        domain: amazon.com
+        balance: 8000
+    accountsList:
+      value:
+        - *ex_account_asset
+        - *ex_account_liability
+        - *ex_account_expense1
+        - *ex_account_expense2
+        - *ex_account_income
+    transactionInputExpense:
+      value:
+        name: Groceries
+        type: expense
+        entries:
+          - date: '2025-03-01'
+            amount: 100
+            isCredit: true
+            accountId: 'amex-gold'
+          - date: '2025-03-02'
+            amount: 100
+            isCredit: false
+            accountId: 'heb'
+    transactionExpense1:
+      summary: >
+        The cisparties are composed of asset or liability accounts, either credited for an actual expense or debited for
+        refunds. The counterparties are composed of expense accounts of opposing flow to the cisparties.
+      value: &ex_transaction_expense1
+        id: RyezBGqA
+        name: Groceries
+        type: expense
+        date: "2025-03-01"
+        counterparties:
+          - id: heb
+            name: HEB
+            type: expense
+            domain: heb.com
+            balance: 1100
+        cisparties:
+          - id: amex-gold
+            name: Amex Gold
+            type: liability
+            domain: americanexpress.com
+            balance: 1100
+        amount: 100
+        isCredit: true
+        value: 100
+    transactionExpense2:
+      value: &ex_transaction_expense2
+        id: Uy8DM4Xs
+        name: Eating out
+        type: expense
+        date: "2025-03-02"
+        counterparties:
+          - id: olive-garden
+            name: Olive Garden
+            type: expense
+            domain: olivegarden.com
+            balance: 50
+        cisparties:
+          - id: amex-gold
+            name: Amex Gold
+            type: liability
+            domain: americanexpress.com
+            balance: 1100
+        amount: 50
+        isCredit: true
+        value: 50
+    transactionIncome:
+      summary: >
+        The cisparties are composed of debited asset accounts. The counterparties are composed of credited income 
+        accounts.
+      value: &ex_transaction_income
+        id: y-ZoDsA6
+        name: Salary
+        type: income
+        date: "2025-03-15"
+        counterparties:
+          - id: amazon-salary
+            name: Amazon Salary
+            type: income
+            domain: amazon.com
+            balance: 8000
+        cisparties:
+          - id: chase-total-checking
+            name: Chase Total Checking
+            type: asset
+            domain: chase.com
+            balance: 8000
+        amount: 8000
+        isCredit: false
+        value: 8000
+    transactionTransfer:
+      summary: >
+        The cisparties are composed of credited asset accounts. The counterparties are composed of debited asset or
+        liability accounts.
+      value: &ex_transaction_transfer
+        id: y-ZoDsA6
+        name: Credit Card Statement Payment
+        type: transfer
+        date: "2025-03-17"
+        counterparties:
+          - id: amex-gold
+            name: Amex Gold
+            type: liability
+            domain: americanexpress.com
+            balance: 1100
+        cisparties:
+          - id: chase-total-checking
+            name: Chase Total Checking
+            type: asset
+            domain: chase.com
+            balance: 8000
+        amount: 1000
+        isCredit: true
+        value: 1000
+    transactionsList:
+      value:
+        - *ex_transaction_expense1
+        - *ex_transaction_expense2
+        - *ex_transaction_income
+        - *ex_transaction_transfer
+    accountTransactionsList:
+      value:
+        - *ex_transaction_expense1
+        - *ex_transaction_expense2
+    entriesList:
+      value:
+        - id: BNR9eUIF
+          date: "2025-03-01"
+          amount: 100
+          isCredit: true
+          account: *ex_account_expense1
+        - id: c_t3RwnQ
+          date: "2025-03-02"
+          amount: 100
+          isCredit: false
+          account: *ex_account_expense2
