@@ -61,14 +61,24 @@ components:
       description: A contextually unique identifier for this entity.
       type: string
       pattern: '^[A-Za-z0-9_-]+$'
-      minLength: 8
-      maxLength: 8
+      minLength: 21
+      maxLength: 21
     AccountId:
       description: A contextually unique identifier for this account.
       type: string
-      pattern: '^[A-Za-z0-9_-]+$'
+      pattern: '^[a-z0-9-]+$'
     AccountType:
-      description: Account type choices.
+      description: |
+        Account type choices. Each type of account changes balance based on the following context:
+        * `asset` (+) debit; (-) credit
+        * `liability` (+) credit; (-) debit
+        * `income` (+) credit; (-) debit
+        * `expense` (+) debit; (-) credit
+        
+        In addition, internal accounts, e.g. `asset` and `liability`, contribute to the equity of
+        the user portfolio following this equation: `E = A - L`, where `E` is portfolio equity/balance,
+        `A` is total balance of asset accounts, and `L` is total balance of liability accounts. The opposite,
+        external accounts, e.g. `income` and `expense` do not contribute to portfolio equity.
       type: string
       enum:
         - asset
@@ -98,11 +108,18 @@ components:
           properties:
             id:
               $ref: '#/components/schemas/AccountId'
-            balance:
-              description: The balance within this account at relative date.
-              type: number
           required:
             - id
+    AccountDetail:
+      description: Account with more detail info
+      allOf:
+        - $ref: '#/components/schemas/Account'
+        - type: object
+          properties:
+            balance:
+              description: The current balance of this account
+              type: number
+          required:
             - balance
     TransactionType:
       description: Transaction type choices.
@@ -120,6 +137,7 @@ components:
         type:
           $ref: '#/components/schemas/TransactionType'
         entries:
+          description: All input entries must have unique accounts.
           type: array
           items:
             $ref: '#/components/schemas/EntryInput'
@@ -138,42 +156,26 @@ components:
         type:
           $ref: '#/components/schemas/TransactionType'
         date:
-          description: The date associated with this transaction.
+          description: The earliest date of all entries in this transaction.
           type: string
           format: date
-        counterparties:
+        equity:
           description: >
-            A list of accounts representing the party opposite of `cisparties`. Generally for income transactions, this
-            would represent credited income accounts; for expenses, vendors; and for transfers, recipient accounts.
+            The amount this transaction contribute towards portfolio equity, i.e. the total
+            debit less total credit of internal accounts.
+          type: number
+        entries:
+          description: List of all entries in this transaction.
           type: array
           items:
-            $ref: '#/components/schemas/Account'
-        cisparties:
-          description: >
-            A list of accounts representing the party opposite of `counterparties`. Generally for income transactions,
-            this would represent debited asset accounts; for expenses, credited asset or liability accounts; and for
-            transfers, sender accounts.
-          type: array
-          items:
-            $ref: '#/components/schemas/Account'
-        amount:
-          description: The amount associated with this transaction.
-          type: number
-        isCredit:
-          description: Indicates whether the `amount` is a credit, if true, or a debit, if false.
-          type: boolean
-        value:
-          description: The absolute total amount transacted in this transaction.
-          type: number
+            $ref: '#/components/schemas/Entry'
       required:
         - id
         - name
+        - type
         - date
-        - counterparties
-        - cisparties
-        - amount
-        - isCredit
-        - value
+        - equity
+        - entries
     EntryInput:
       description: A simplified representation of an entry before creation.
       type: object
@@ -182,20 +184,14 @@ components:
           description: The date this entry took place.
           type: string
           format: date
-        amount:
-          description: The amount this entry changes the `account` balance.
+        balance:
+          description: The amount this entry changes the account balance.
           type: number
-          minimum: 0
-          exclusiveMinimum: true
-        isCredit:
-          description: Indicates whether the `amount` is a credit, if true, or a debit, if false.
-          type: boolean
         accountId:
           $ref: '#/components/schemas/AccountId'
       required:
         - date
-        - amount
-        - isCredit
+        - balance
         - accountId
     Entry:
       description: A component of a transaction that records a balance change to an account at a specific date.
@@ -207,21 +203,15 @@ components:
           description: The date this entry took place.
           type: string
           format: date
-        amount:
-          description: The amount this entry changes the `account` balance.
+        balance:
+          description: The amount this entry changes the account balance.
           type: number
-          minimum: 0
-          exclusiveMinimum: true
-        isCredit:
-          description: Indicates whether the `amount` is a credit, if true, or a debit, if false.
-          type: boolean
         account:
           $ref: '#/components/schemas/Account'
       required:
         - id
         - date
-        - amount
-        - isCredit
+        - balance
         - account
     DateSeriesDataPoint:
       description: A single observation within a series of data collected over date.
@@ -243,36 +233,36 @@ components:
         name: Chase Total Checking
         type: asset
         domain: chase.com
-    accountAsset:
-      value: &ex_account_asset
+    accountChecking:
+      value: &ex_account_checking
         id: chase-total-checking
         name: Chase Total Checking
         type: asset
         domain: chase.com
         balance: 100
-    accountLiability:
-      value: &ex_account_liability
+    accountCreditCard:
+      value: &ex_account_credit_card
         id: amex-gold
         name: Amex Gold
         type: liability
         domain: americanexpress.com
         balance: 1100
-    accountExpense1:
-      value: &ex_account_expense1
+    accountGroceryStore:
+      value: &ex_account_grocery_store
         id: heb
         name: HEB
         type: expense
         domain: heb.com
         balance: 1100
-    accountExpense2:
-      value: &ex_account_expense2
+    accountRestaurant:
+      value: &ex_account_restaurant
         id: olive-garden
         name: Olive Garden
         type: expense
         domain: olivegarden.com
         balance: 50
-    accountIncome:
-      value: &ex_account_income
+    accountSalary:
+      value: &ex_account_salary
         id: amazon-salary
         name: Amazon Salary
         type: income
@@ -280,29 +270,24 @@ components:
         balance: 8000
     accountsList:
       value: &ex_accounts_list
-        - *ex_account_asset
-        - *ex_account_liability
-        - *ex_account_expense1
-        - *ex_account_expense2
-        - *ex_account_income
+        - *ex_account_checking
+        - *ex_account_credit_card
+        - *ex_account_grocery_store
+        - *ex_account_restaurant
+        - *ex_account_salary
     transactionInputExpense:
       value:
         name: Groceries
         type: expense
         entries:
           - date: '2025-03-01'
-            amount: 100
-            isCredit: true
+            balance: 100
             accountId: 'amex-gold'
           - date: '2025-03-02'
-            amount: 100
-            isCredit: false
+            balance: 100
             accountId: 'heb'
-    transactionExpense1:
-      summary: >
-        The cisparties are composed of asset or liability accounts, either credited for an actual expense or debited for
-        refunds. The counterparties are composed of expense accounts of opposing flow to the cisparties.
-      value: &ex_transaction_expense1
+    transactionGroceries:
+      value: &ex_transaction_groceries
         id: RyezBGqA
         name: Groceries
         type: expense
@@ -319,11 +304,10 @@ components:
             type: liability
             domain: americanexpress.com
             balance: 1100
-        amount: 100
-        isCredit: true
-        value: 100
-    transactionExpense2:
-      value: &ex_transaction_expense2
+        credit: 100
+        debit: 0
+    transactionEatingOut:
+      value: &ex_transaction_eating_out
         id: Uy8DM4Xs
         name: Eating out
         type: expense
@@ -343,11 +327,8 @@ components:
         amount: 50
         isCredit: true
         value: 50
-    transactionIncome:
-      summary: >
-        The cisparties are composed of debited asset accounts. The counterparties are composed of credited income 
-        accounts.
-      value: &ex_transaction_income
+    transactionSalary:
+      value: &ex_transaction_salary
         id: y-ZoDsA6
         name: Salary
         type: income
@@ -367,11 +348,8 @@ components:
         amount: 8000
         isCredit: false
         value: 8000
-    transactionTransfer:
-      summary: >
-        The cisparties are composed of credited asset accounts. The counterparties are composed of debited asset or
-        liability accounts.
-      value: &ex_transaction_transfer
+    transactionCreditCardPayment:
+      value: &ex_transaction_credit_card_payment
         id: y-ZoDsA6
         name: Credit Card Statement Payment
         type: transfer
@@ -393,26 +371,26 @@ components:
         value: 1000
     transactionsList:
       value: &ex_transactions_list
-        - *ex_transaction_expense1
-        - *ex_transaction_expense2
-        - *ex_transaction_income
-        - *ex_transaction_transfer
+        - *ex_transaction_groceries
+        - *ex_transaction_eating_out
+        - *ex_transaction_salary
+        - *ex_transaction_credit_card_payment
     accountTransactionsList:
       value: &ex_account_transactions_list
-        - *ex_transaction_expense1
-        - *ex_transaction_expense2
+        - *ex_transaction_groceries
+        - *ex_transaction_eating_out
     entriesList:
       value: &ex_entries_list
         - id: BNR9eUIF
           date: "2025-03-01"
           amount: 100
           isCredit: true
-          account: *ex_account_expense1
+          account: *ex_account_grocery_store
         - id: c_t3RwnQ
           date: "2025-03-02"
           amount: 100
           isCredit: false
-          account: *ex_account_expense2
+          account: *ex_account_restaurant
 
 paths:
   /accounts:
@@ -433,9 +411,9 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Account'
-              example:
-                *ex_accounts_list
+                  $ref: '#/components/schemas/AccountDetail'
+    #              example:
+    #                *ex_accounts_list
     post:
       tags:
         - accounts
@@ -451,9 +429,9 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AccountInput'
-            examples:
-              asset:
-                $ref: '#/components/examples/accountInputAsset'
+      #            examples:
+      #              asset:
+      #                $ref: '#/components/examples/accountInputAsset'
       responses:
         201:
           description: Created
@@ -467,9 +445,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Account'
-              examples:
-                asset:
-                  $ref: '#/components/examples/accountAsset'
+        #              examples:
+        #                asset:
+        #                  $ref: '#/components/examples/accountChecking'
         422:
           description: Unprocessable Content
   /accounts/{id}:
@@ -489,18 +467,18 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Account'
-              examples:
-                asset:
-                  $ref: '#/components/examples/accountAsset'
-                liability:
-                  $ref: '#/components/examples/accountLiability'
-                expense 1:
-                  $ref: '#/components/examples/accountExpense1'
-                expense 2:
-                  $ref: '#/components/examples/accountExpense2'
-                income:
-                  $ref: '#/components/examples/accountIncome'
+                $ref: '#/components/schemas/AccountDetail'
+        #              examples:
+        #                checking:
+        #                  $ref: '#/components/examples/accountChecking'
+        #                credit card:
+        #                  $ref: '#/components/examples/accountCreditCard'
+        #                grocery store:
+        #                  $ref: '#/components/examples/accountGroceryStore'
+        #                restaurant:
+        #                  $ref: '#/components/examples/accountRestaurant'
+        #                salary:
+        #                  $ref: '#/components/examples/accountSalary'
         404:
           description: Not found
     put:
@@ -520,9 +498,9 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/AccountInput'
-            examples:
-              asset:
-                $ref: '#/components/examples/accountInputAsset'
+      #            examples:
+      #              asset:
+      #                $ref: '#/components/examples/accountInputAsset'
       responses:
         200:
           description: OK
@@ -530,9 +508,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Account'
-              examples:
-                asset:
-                  $ref: '#/components/examples/accountAsset'
+        #              examples:
+        #                asset:
+        #                  $ref: '#/components/examples/accountChecking'
         201:
           description: Created
           headers:
@@ -545,9 +523,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Account'
-              examples:
-                asset:
-                  $ref: '#/components/examples/accountAsset'
+        #              examples:
+        #                asset:
+        #                  $ref: '#/components/examples/accountChecking'
         404:
           description: Not found
         422:
@@ -584,25 +562,25 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/DateSeriesDataPoint'
-              example: |
-                [
-                  {
-                    "date": "2025-03-01",
-                    "value": 4000
-                  },
-                  {
-                    "date": "2025-03-02",
-                    "value": 5000
-                  },
-                  {
-                    "date": "2025-03-04",
-                    "value": 2000
-                  },
-                  {
-                    "date": "2025-03-07",
-                    "value": 3000
-                  }
-                ]
+        #              example: |
+        #                [
+        #                  {
+        #                    "date": "2025-03-01",
+        #                    "value": 4000
+        #                  },
+        #                  {
+        #                    "date": "2025-03-02",
+        #                    "value": 5000
+        #                  },
+        #                  {
+        #                    "date": "2025-03-04",
+        #                    "value": 2000
+        #                  },
+        #                  {
+        #                    "date": "2025-03-07",
+        #                    "value": 3000
+        #                  }
+        #                ]
         404:
           description: Not found
   /accounts/{id}/transactions:
@@ -624,8 +602,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Transaction'
-              example:
-                *ex_account_transactions_list
+        #              example:
+        #                *ex_account_transactions_list
         404:
           description: Not found
   /transactions:
@@ -646,8 +624,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Transaction'
-              example:
-                *ex_transactions_list
+    #              example:
+    #                *ex_transactions_list
     post:
       tags:
         - transactions
@@ -661,9 +639,9 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/TransactionInput'
-            examples:
-              expense:
-                $ref: '#/components/examples/transactionInputExpense'
+      #            examples:
+      #              expense:
+      #                $ref: '#/components/examples/transactionInputExpense'
       responses:
         201:
           description: Created
@@ -677,9 +655,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Transaction'
-              examples:
-                expense:
-                  $ref: '#/components/examples/transactionExpense1'
+  #              examples:
+  #                expense:
+  #                  $ref: '#/components/examples/transactionGroceries'
   /transactions/{id}:
     get:
       tags:
@@ -696,13 +674,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Transaction'
-              examples:
-                expense:
-                  $ref: '#/components/examples/transactionExpense1'
-                income:
-                  $ref: '#/components/examples/transactionIncome'
-                transfer:
-                  $ref: '#/components/examples/transactionTransfer'
+    #              examples:
+    #                groceries:
+    #                  $ref: '#/components/examples/transactionGroceries'
+    #                eating out:
+    #                  $ref: '#/components/examples/transactionEatingOut'
+    #                salary:
+    #                  $ref: '#/components/examples/transactionSalary'
+    #                credit card payment:
+    #                  $ref: '#/components/examples/transactionCreditCardPayment'
     put:
       tags:
         - transactions
@@ -719,9 +699,9 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/TransactionInput'
-            examples:
-              expense:
-                $ref: '#/components/examples/transactionInputExpense'
+      #            examples:
+      #              expense:
+      #                $ref: '#/components/examples/transactionInputExpense'
       responses:
         200:
           description: OK
@@ -729,9 +709,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Transaction'
-              examples:
-                expense:
-                  $ref: '#/components/examples/transactionExpense1'
+        #              examples:
+        #                expense:
+        #                  $ref: '#/components/examples/transactionGroceries'
         201:
           description: Created
           headers:
@@ -744,9 +724,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Transaction'
-              examples:
-                expense:
-                  $ref: '#/components/examples/transactionExpense1'
+    #              examples:
+    #                expense:
+    #                  $ref: '#/components/examples/transactionGroceries'
     delete:
       tags:
         - transactions
@@ -758,27 +738,3 @@ paths:
       responses:
         204:
           description: No Content
-  /transactions/{id}/entries:
-    get:
-      tags:
-        - transactions
-      summary: Returns all entries of a transaction with the given ID.
-      description: >
-        Returns a sorted series of all entries of a transaction with the given ID belonging to the user. In a transaction,
-        The sum of all credit amounts must equal the sum of all debit amounts, but it is not required to have an equal 
-        number of credit and debit entries.
-      parameters:
-        - $ref: '#/components/parameters/X-Session-Token'
-        - $ref: '#/components/parameters/TransactionId'
-        - $ref: '#/components/parameters/Order'
-      responses:
-        200:
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Entry'
-              example:
-                *ex_entries_list
