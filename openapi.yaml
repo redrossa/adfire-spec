@@ -25,19 +25,12 @@ components:
         type: string
         format: uuid
       required: true
-    AccountId:
-      description: Identifier for this account.
+    Id:
+      description: Entity identifier.
       name: id
       in: path
       schema:
-        $ref: '#/components/schemas/AccountId'
-      required: true
-    TransactionId:
-      description: Identifier for this transaction.
-      name: id
-      in: path
-      schema:
-        $ref: '#/components/schemas/EntityId'
+        $ref: '#/components/schemas/Id'
       required: true
     Order:
       description: Order to sort entities by date.
@@ -51,22 +44,18 @@ components:
         default: asc
       required: false
   schemas:
-    EntityName:
+    Name:
       description: A textual representation of this entity.
       type: string
       minLength: 1
       maxLength: 256
       pattern: '^[\w\s-]+$'
-    EntityId:
-      description: A contextually unique identifier for this entity.
+    Id:
+      description: A globally unique identifier for this entity.
       type: string
       pattern: '^[A-Za-z0-9_-]+$'
       minLength: 21
       maxLength: 21
-    AccountId:
-      description: A contextually unique identifier for this account.
-      type: string
-      pattern: '^[a-z0-9-]+$'
     AccountType:
       description: |
         Account type choices. Each type of account changes balance based on the following context:
@@ -90,7 +79,7 @@ components:
       type: object
       properties:
         name:
-          $ref: '#/components/schemas/EntityName'
+          $ref: '#/components/schemas/Name'
         type:
           $ref: '#/components/schemas/AccountType'
         domain:
@@ -107,20 +96,9 @@ components:
         - type: object
           properties:
             id:
-              $ref: '#/components/schemas/AccountId'
+              $ref: '#/components/schemas/Id'
           required:
             - id
-    AccountDetail:
-      description: Account with more detail info
-      allOf:
-        - $ref: '#/components/schemas/Account'
-        - type: object
-          properties:
-            balance:
-              description: The current balance of this account
-              type: number
-          required:
-            - balance
     TransactionType:
       description: Transaction type choices.
       type: string
@@ -133,11 +111,13 @@ components:
       type: object
       properties:
         name:
-          $ref: '#/components/schemas/EntityName'
+          $ref: '#/components/schemas/Name'
         type:
           $ref: '#/components/schemas/TransactionType'
         entries:
-          description: All input entries must have unique accounts.
+          description: >
+            All input entries must have unique accounts. The sum of all debits must equal the sum of
+            all credits.
           type: array
           items:
             $ref: '#/components/schemas/EntryInput'
@@ -150,9 +130,9 @@ components:
       type: object
       properties:
         id:
-          $ref: '#/components/schemas/EntityId'
+          $ref: '#/components/schemas/Id'
         name:
-          $ref: '#/components/schemas/EntityName'
+          $ref: '#/components/schemas/Name'
         type:
           $ref: '#/components/schemas/TransactionType'
         date:
@@ -165,10 +145,20 @@ components:
             debit less total credit of internal accounts.
           type: number
         entries:
-          description: List of all entries in this transaction.
+          description: Map of account ID to corresponding entry in this transaction.
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/Entry'
+        from:
+          description: List IDs from which accounts.
           type: array
           items:
-            $ref: '#/components/schemas/Entry'
+            $ref: '#/components/schemas/Id'
+        to:
+          description: List IDs to which accounts.
+          type: array
+          items:
+            $ref: '#/components/schemas/Id'
       required:
         - id
         - name
@@ -176,6 +166,8 @@ components:
         - date
         - equity
         - entries
+        - from
+        - to
     EntryInput:
       description: A simplified representation of an entry before creation.
       type: object
@@ -184,49 +176,35 @@ components:
           description: The date this entry took place.
           type: string
           format: date
-        balance:
-          description: The amount this entry changes the account balance.
+        amount:
+          description: The amount this entry contributes to the account balance.
           type: number
         accountId:
-          $ref: '#/components/schemas/AccountId'
+          $ref: '#/components/schemas/Id'
       required:
         - date
-        - balance
+        - amount
         - accountId
     Entry:
       description: A component of a transaction that records a balance change to an account at a specific date.
       type: object
       properties:
         id:
-          $ref: '#/components/schemas/EntityId'
+          $ref: '#/components/schemas/Id'
         date:
           description: The date this entry took place.
           type: string
           format: date
-        balance:
-          description: The amount this entry changes the account balance.
+        amount:
+          description: The amount this entry contributes to the account balance.
           type: number
         account:
           $ref: '#/components/schemas/Account'
       required:
         - id
         - date
-        - balance
+        - amount
         - account
-    DateSeriesDataPoint:
-      description: A single observation within a series of data collected over date.
-      type: object
-      properties:
-        date:
-          description: The date associated with this data point.
-          type: string
-          format: date
-        value:
-          description: The value associated with this data point.
-          type: number
-      required:
-        - date
-        - value
   examples:
     accountInputAsset:
       value: &ex_account_input_asset
@@ -411,7 +389,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/AccountDetail'
+                  $ref: '#/components/schemas/Account'
     #              example:
     #                *ex_accounts_list
     post:
@@ -460,14 +438,14 @@ paths:
         is the current balance of the account.
       parameters:
         - $ref: '#/components/parameters/X-Session-Token'
-        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/Id'
       responses:
         200:
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccountDetail'
+                $ref: '#/components/schemas/Account'
         #              examples:
         #                checking:
         #                  $ref: '#/components/examples/accountChecking'
@@ -491,7 +469,7 @@ paths:
         updated to reflect the kebab case of the new name.
       parameters:
         - $ref: '#/components/parameters/X-Session-Token'
-        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/Id'
       requestBody:
         required: true
         content:
@@ -537,50 +515,10 @@ paths:
       description: Deletes an account with the given ID belonging to the session user.
       parameters:
         - $ref: '#/components/parameters/X-Session-Token'
-        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/Id'
       responses:
         204:
           description: No content
-        404:
-          description: Not found
-  /accounts/{id}/balances:
-    get:
-      tags:
-        - accounts
-      summary: Returns all daily balances of an account.
-      description: Returns a sorted series of all daily balances of an account with the given ID belonging to the session user.
-      parameters:
-        - $ref: '#/components/parameters/X-Session-Token'
-        - $ref: '#/components/parameters/AccountId'
-        - $ref: '#/components/parameters/Order'
-      responses:
-        200:
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/DateSeriesDataPoint'
-        #              example: |
-        #                [
-        #                  {
-        #                    "date": "2025-03-01",
-        #                    "value": 4000
-        #                  },
-        #                  {
-        #                    "date": "2025-03-02",
-        #                    "value": 5000
-        #                  },
-        #                  {
-        #                    "date": "2025-03-04",
-        #                    "value": 2000
-        #                  },
-        #                  {
-        #                    "date": "2025-03-07",
-        #                    "value": 3000
-        #                  }
-        #                ]
         404:
           description: Not found
   /accounts/{id}/transactions:
@@ -591,7 +529,7 @@ paths:
       description: Returns a sorted series of all transactions of an account with the given ID belonging to the session user.
       parameters:
         - $ref: '#/components/parameters/X-Session-Token'
-        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/Id'
         - $ref: '#/components/parameters/Order'
       responses:
         200:
@@ -666,7 +604,7 @@ paths:
       description: Returns a transaction with the given ID belonging to the user.
       parameters:
         - $ref: '#/components/parameters/X-Session-Token'
-        - $ref: '#/components/parameters/TransactionId'
+        - $ref: '#/components/parameters/Id'
       responses:
         200:
           description: OK
@@ -692,7 +630,7 @@ paths:
         the given ID does not exist.
       parameters:
         - $ref: '#/components/parameters/X-Session-Token'
-        - $ref: '#/components/parameters/TransactionId'
+        - $ref: '#/components/parameters/Id'
       requestBody:
         required: true
         content:
@@ -734,7 +672,7 @@ paths:
       description: Deletes the transaction with the given ID belonging to the user.
       parameters:
         - $ref: '#/components/parameters/X-Session-Token'
-        - $ref: '#/components/parameters/TransactionId'
+        - $ref: '#/components/parameters/Id'
       responses:
         204:
           description: No Content
