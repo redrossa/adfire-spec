@@ -158,7 +158,6 @@ components:
         equity:
           description: The net equity due to the balance changes of accounts in this side.
           type: number
-          minimum: 0
       required:
         - accounts
         - equity
