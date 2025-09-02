@@ -156,10 +156,9 @@ components:
           items:
             $ref: '#/components/schemas/Account'
         equity:
-          description: The equity due to the balance changes of accounts in this side.
+          description: The net equity due to the balance changes of accounts in this side.
           type: number
           minimum: 0
-          exclusiveMinimum: true
       required:
         - accounts
         - equity
