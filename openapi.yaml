@@ -43,6 +43,13 @@ components:
           - desc
         default: asc
       required: false
+    Limit:
+      description: Maximum number of items returned. If not provided, will attempt to return all available items.
+      name: limit
+      in: query
+      schema:
+        type: number
+      required: false
   schemas:
     Name:
       description: A textual representation of this entity.
@@ -407,6 +414,7 @@ paths:
         in each account item is the current balance of the respective account.
       parameters:
         - $ref: '#/components/parameters/SessionToken'
+        - $ref: '#/components/parameters/Limit'
       responses:
         200:
           description: OK
@@ -557,6 +565,7 @@ paths:
         - $ref: '#/components/parameters/SessionToken'
         - $ref: '#/components/parameters/Id'
         - $ref: '#/components/parameters/Order'
+        - $ref: '#/components/parameters/Limit'
       responses:
         200:
           description: OK
@@ -579,6 +588,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/SessionToken'
         - $ref: '#/components/parameters/Order'
+        - $ref: '#/components/parameters/Limit'
       responses:
         200:
           description: OK
