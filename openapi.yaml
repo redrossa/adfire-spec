@@ -118,14 +118,23 @@ components:
         - type
     Account:
       description: An entity that acts upon a collection of transactions.
-      allOf:
-        - $ref: '#/components/schemas/AccountInput'
-        - type: object
-          properties:
-            id:
-              $ref: '#/components/schemas/Id'
-          required:
-            - id
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        name:
+          $ref: '#/components/schemas/Name'
+        type:
+          $ref: '#/components/schemas/AccountType'
+        domain:
+          description: The institutional domain name associated with this account.
+          type:
+            - string
+            - 'null'
+      required:
+        - id
+        - name
+        - type
+        - domain
     TransactionType:
       description: Transaction type choices.
       type: string
@@ -201,6 +210,12 @@ components:
         - equity
         - from
         - to
+    EntryType:
+      description: Entry type depending on the sign amount due on the account and the account type.
+      type: string
+      enum:
+        - credit
+        - debit
     EntryInput:
       description: A simplified representation of an entry before creation.
       type: object
